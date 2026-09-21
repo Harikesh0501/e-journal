@@ -11,3 +11,4 @@ python-multipart>=0.0.32
 structlog>=26.1.0
 cloudinary>=1.45.0
 email-validator>=2.3.0
+httpx>=0.28.1
