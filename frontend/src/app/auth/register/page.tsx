@@ -1,0 +1,166 @@
+/**
+ * Register account view.
+ *
+ * Enforces role selection and validation.
+ */
+
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as zod from "zod";
+import { useMutation } from "@tanstack/react-query";
+
+import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { GraduationCap } from "lucide-react";
+
+const registerSchema = zod
+  .object({
+    email: zod.string().email("Enter a valid institutional email"),
+    password: zod.string().min(8, "Password must be at least 8 characters"),
+    confirm_password: zod.string().min(8, "Please confirm your password"),
+    role: zod.literal("student"),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  });
+
+type RegisterFields = zod.infer<typeof registerSchema>;
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFields>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      role: "student",
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: RegisterFields) =>
+      api.post("/auth/register", {
+        email: data.email,
+        password: data.password,
+        role: data.role,
+      }),
+    onSuccess: (_data: any, variables: RegisterFields) => {
+      // Redirect to verification screen with email preloaded
+      router.push(`/auth/verify?email=${encodeURIComponent(variables.email)}`);
+    },
+    onError: (error: any) => {
+      setErrorMsg(error.message || "Registration failed. Email might already be taken.");
+    },
+  });
+
+  const onSubmit = (data: RegisterFields) => {
+    setErrorMsg(null);
+    mutation.mutate(data);
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-background relative overflow-hidden">
+      {/* Subtle ambient light glow underneath floating glass card */}
+      <div className="absolute size-[450px] rounded-full bg-blue-500/10 blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-[400px] p-8 rounded-3xl bg-gradient-to-b from-white/80 via-white/65 to-white/50 dark:from-zinc-900/85 dark:via-zinc-900/75 dark:to-zinc-950/70 backdrop-blur-2xl backdrop-saturate-180 border border-white/80 dark:border-white/15 ring-1 ring-black/5 dark:ring-white/10 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.1),_inset_0_1px_1px_0_rgba(255,255,255,0.95),_inset_0_-1px_1px_0_rgba(0,0,0,0.05)] dark:shadow-[0_24px_60px_-15px_rgba(0,0,0,0.7),_inset_0_1px_1px_0_rgba(255,255,255,0.18),_inset_0_-1px_1px_0_rgba(0,0,0,0.5)] flex flex-col gap-6 relative transition-all duration-300">
+        {/* Header */}
+        <div className="flex flex-col items-center gap-1 text-center">
+          <img
+            src="/logo.png"
+            alt="eJournal Logo"
+            className="h-16 w-auto object-contain mb-2"
+          />
+          <h2 className="text-2xl font-bold tracking-tight">Create Account</h2>
+          <p className="text-sm text-muted-foreground">
+            Get started with eJournal
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          {errorMsg && (
+            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
+              {errorMsg}
+            </div>
+          )}
+
+          {/* Institutional Student Notice Banner */}
+          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5 leading-relaxed">
+            <GraduationCap className="size-4 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+            <div>
+              <span className="font-bold">Student Registration:</span> Create your student academic account. Faculty & teacher accounts are securely provisioned by your institution administrator.
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">
+              Institutional Email
+            </label>
+            <input
+              type="email"
+              placeholder="email@university.edu"
+              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              {...register("email")}
+            />
+            {errors.email && (
+              <span className="text-xs text-destructive mt-0.5">{errors.email.message}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              {...register("password")}
+            />
+            {errors.password && (
+              <span className="text-xs text-destructive mt-0.5">{errors.password.message}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              {...register("confirm_password")}
+            />
+            {errors.confirm_password && (
+              <span className="text-xs text-destructive mt-0.5">{errors.confirm_password.message}</span>
+            )}
+          </div>
+
+          <Button type="submit" size="lg" className="w-full mt-2" disabled={mutation.isPending}>
+            {mutation.isPending ? "Creating Account..." : "Register"}
+          </Button>
+        </form>
+
+        {/* Footer */}
+        <div className="text-center text-sm text-muted-foreground mt-2">
+          Already registered?{" "}
+          <Link href="/auth/login" className="font-semibold text-primary hover:underline">
+            Sign In
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
