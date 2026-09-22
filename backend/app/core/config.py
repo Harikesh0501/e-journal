@@ -6,7 +6,7 @@ RULE-BE08: Connection config from env-based settings.
 """
 
 from pydantic_settings import BaseSettings
-from pydantic import Field, model_validator
+from pydantic import Field, model_validator, field_validator
 
 
 class Settings(BaseSettings):
@@ -22,6 +22,20 @@ class Settings(BaseSettings):
         default=["http://localhost:3000"],
         description="Allowed CORS origins",
     )
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # MongoDB Atlas (RULE-BE08)
     MONGODB_URI: str = Field(
