@@ -18,7 +18,7 @@ import {
   FileImage,
 } from "lucide-react";
 import { useDocumentStore } from "../use-document-store";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 import { toast } from "@/lib/toast";
 
 interface ImageItem {
@@ -47,9 +47,6 @@ interface ImageBlockProps {
   };
   previewMode: boolean;
 }
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export default function ImageBlock({ id, content, previewMode }: ImageBlockProps) {
   const updateBlock = useDocumentStore((state) => state.updateBlock);

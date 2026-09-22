@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 
 interface CategoryStack {
   id: string;
@@ -259,11 +259,28 @@ export default function NotificationBell() {
     let isMounted = true;
 
     function connect() {
-      if (typeof window === "undefined" || !isMounted) return;
+      if (typeof window === "undefined" || !isMounted || (window as any).__IS_LOGGING_OUT) return;
 
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = process.env.NEXT_PUBLIC_WS_HOST || "localhost:8000";
-      const wsUrl = `${protocol}//${host}/api/v1/notifications/ws`;
+      const token =
+        sessionStorage.getItem("ejournal_token") ||
+        localStorage.getItem("ejournal_token");
+
+      if (!token) return;
+
+      let host = process.env.NEXT_PUBLIC_WS_HOST;
+      let protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+
+      if (!host) {
+        try {
+          const parsed = new URL(API_BASE_URL);
+          host = parsed.host;
+          protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+        } catch {
+          host = "localhost:8000";
+        }
+      }
+
+      const wsUrl = `${protocol}//${host}/api/v1/notifications/ws?token=${encodeURIComponent(token)}`;
 
       try {
         ws = new WebSocket(wsUrl);
@@ -302,11 +319,11 @@ export default function NotificationBell() {
         };
 
         ws.onclose = () => {
-          if (isMounted) reconnectTimer = setTimeout(connect, 3000);
+          if (isMounted && !(window as any).__IS_LOGGING_OUT) reconnectTimer = setTimeout(connect, 5000);
         };
         ws.onerror = () => ws?.close();
       } catch {
-        if (isMounted) reconnectTimer = setTimeout(connect, 5000);
+        if (isMounted && !(window as any).__IS_LOGGING_OUT) reconnectTimer = setTimeout(connect, 5000);
       }
     }
 

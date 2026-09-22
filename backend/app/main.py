@@ -78,6 +78,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        max_age=86400,
     )
 
     # Register global exception handlers (RULE-ERR01, RULE-ERR02)

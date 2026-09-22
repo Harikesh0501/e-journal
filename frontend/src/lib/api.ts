@@ -11,8 +11,25 @@ declare global {
   }
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+function normalizeApiUrl(rawUrl?: string): string {
+  if (!rawUrl || !rawUrl.trim()) {
+    return "http://localhost:8000/api/v1";
+  }
+  let url = rawUrl.trim();
+  while (url.endsWith("/")) {
+    url = url.slice(0, -1);
+  }
+  if (!url.endsWith("/api/v1")) {
+    if (url.endsWith("/api")) {
+      url = `${url}/v1`;
+    } else {
+      url = `${url}/api/v1`;
+    }
+  }
+  return url;
+}
+
+export const API_BASE_URL = normalizeApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 /** Standard API error response shape */
 export interface ApiError {
@@ -100,17 +117,46 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch (netErr: any) {
+    throw new ApiRequestError(
+      "NETWORK_ERROR",
+      "Unable to connect to server. If Render backend was sleeping, please wait a moment and try again.",
+      0,
+      netErr
+    );
+  }
 
-  const body: ApiResponse<T> = await response.json();
+  let body: ApiResponse<T>;
+  const rawText = await response.text();
+  try {
+    body = JSON.parse(rawText);
+  } catch {
+    if (!response.ok) {
+      throw new ApiRequestError(
+        "SERVER_ERROR",
+        response.statusText || "Server encountered an error. Please try again.",
+        response.status,
+        rawText
+      );
+    }
+    throw new ApiRequestError(
+      "PARSE_ERROR",
+      "Unexpected non-JSON response received from server.",
+      response.status,
+      rawText
+    );
+  }
 
   if (!body.success || body.error) {
     // Force clear JWT cookie at root path if authentication is rejected (prevents Next.js loops)

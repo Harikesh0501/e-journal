@@ -35,9 +35,14 @@ async def notification_websocket(
             "http://127.0.0.1:3000",
             "http://localhost:8000",
             "http://127.0.0.1:8000",
+            "https://e-journal-nine.vercel.app",
             "testserver",
         }
-        if origin not in allowed_origins:
+        is_allowed = (
+            origin in allowed_origins
+            or (origin.startswith("https://") and origin.endswith(".vercel.app"))
+        )
+        if not is_allowed:
             logger.warning("WebSocket handshake rejected: Disallowed origin %s", origin)
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Disallowed origin")
             return

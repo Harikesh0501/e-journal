@@ -19,7 +19,11 @@ class Settings(BaseSettings):
     BACKEND_HOST: str = Field(default="0.0.0.0")
     BACKEND_PORT: int = Field(default=8000)
     BACKEND_CORS_ORIGINS: list[str] = Field(
-        default=["http://localhost:3000"],
+        default=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://e-journal-nine.vercel.app",
+        ],
         description="Allowed CORS origins",
     )
 

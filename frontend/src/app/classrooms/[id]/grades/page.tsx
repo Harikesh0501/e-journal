@@ -40,7 +40,7 @@ import {
   User,
 } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GlassDropdown, DropdownOption } from "@/components/ui/glass-dropdown";
@@ -361,12 +361,11 @@ export default function ClassroomGradesPage({ params }: PageProps) {
   const handleExportCsv = async () => {
     try {
       setIsExportingCsv(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
       const params = new URLSearchParams();
       if (selectedBatch !== "ALL") params.append("batch", selectedBatch);
       if (selectedDivision !== "ALL") params.append("division", selectedDivision);
       const qs = params.toString();
-      const res = await fetch(`${apiUrl}/classrooms/${classroomId}/gradebook/export/csv${qs ? `?${qs}` : ""}`, {
+      const res = await fetch(`${API_BASE_URL}/classrooms/${classroomId}/gradebook/export/csv${qs ? `?${qs}` : ""}`, {
         method: "GET",
         credentials: "include",
       });
