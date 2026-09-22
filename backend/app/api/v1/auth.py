@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.dependencies.auth import get_current_user
 from app.dependencies.rate_limit import RateLimiter
 from app.schemas.auth import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
     UserLoginRequest,
@@ -121,6 +122,7 @@ async def login(
         "role": user["role"],
         "is_verified": user.get("is_verified", False),
         "is_profile_complete": user.get("is_profile_complete", False),
+        "must_change_password": user.get("must_change_password", False),
     }
     return success_response({"user": user_meta, "access_token": access_token})
 
@@ -194,3 +196,46 @@ async def reset_password(
         payload.email, payload.otp, payload.new_password, ip_address=ip_address
     )
     return success_response(message)
+
+
+@router.post(
+    "/change-password",
+    response_model=ApiResponse[dict],
+    dependencies=[Depends(RateLimiter(max_requests=10, window_seconds=60, action="change_password"))],
+)
+async def change_password(
+    request: Request,
+    response: Response,
+    payload: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+    auth_service: AuthService = Depends(),
+):
+    """Update password for authenticated user and clear mandatory change requirement."""
+    ip_address = request.client.host if request.client else None
+    access_token, updated_user = await auth_service.change_password(
+        current_user,
+        payload.current_password,
+        payload.new_password,
+        ip_address=ip_address,
+    )
+
+    cookie_samesite = "none" if settings.is_production else "lax"
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite=cookie_samesite,
+        secure=settings.cookie_secure,
+        path="/",
+    )
+
+    user_meta = {
+        "id": updated_user["id"],
+        "email": updated_user["email"],
+        "role": updated_user["role"],
+        "is_verified": updated_user.get("is_verified", False),
+        "is_profile_complete": updated_user.get("is_profile_complete", False),
+        "must_change_password": False,
+    }
+    return success_response({"user": user_meta, "access_token": access_token})
+

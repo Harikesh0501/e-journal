@@ -39,7 +39,11 @@ export default function LoginPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: LoginFields) => api.post<{ access_token: string; user: { is_profile_complete: boolean } }>("/auth/login", data),
+    mutationFn: (data: LoginFields) =>
+      api.post<{
+        access_token: string;
+        user: { is_profile_complete: boolean; must_change_password?: boolean };
+      }>("/auth/login", data),
     onSuccess: (data) => {
       // Persist token for Next.js middleware and API authorization across domains
       if (data.access_token) {
@@ -54,7 +58,9 @@ export default function LoginPage() {
       // Purge all stale cached queries from previous user sessions
       queryClient.clear();
 
-      if (data.user.is_profile_complete) {
+      if (data.user.must_change_password) {
+        router.push("/auth/change-password");
+      } else if (data.user.is_profile_complete) {
         router.push("/dashboard");
       } else {
         router.push("/profile/setup");

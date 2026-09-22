@@ -51,7 +51,7 @@ export function middleware(request: NextRequest) {
 
   // 1. Unauthenticated workflow
   if (!token) {
-    if (!isAuthRoute) {
+    if (!isAuthRoute || pathname === "/auth/change-password") {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
     return NextResponse.next();
@@ -65,6 +65,27 @@ export function middleware(request: NextRequest) {
     const response = NextResponse.redirect(new URL("/auth/login", request.url));
     response.cookies.set("access_token", "", { maxAge: 0, path: "/" });
     return response;
+  }
+
+  const isChangePasswordRoute = pathname === "/auth/change-password";
+  const mustChangePassword = payload.must_change_password === true;
+
+  // Enforce mandatory password replacement (e.g. teacher first-time login)
+  if (mustChangePassword) {
+    if (!isChangePasswordRoute) {
+      return NextResponse.redirect(new URL("/auth/change-password", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Prevent visiting change password page if not required
+  if (isChangePasswordRoute) {
+    if (payload.role === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+    return NextResponse.redirect(
+      new URL(payload.is_profile_complete ? "/dashboard" : "/profile/setup", request.url)
+    );
   }
 
   const isAdmin = payload.role === "admin";

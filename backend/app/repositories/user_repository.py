@@ -113,6 +113,7 @@ class UserRepository(BaseRepository):
             {
                 "$set": {
                     "password_hash": password_hash,
+                    "must_change_password": False,
                     "updatedAt": datetime.now(timezone.utc),
                 },
                 "$unset": {

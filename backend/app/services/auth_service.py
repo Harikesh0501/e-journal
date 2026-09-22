@@ -267,6 +267,7 @@ class AuthService:
                 "sub": user["email"],
                 "role": user["role"],
                 "is_profile_complete": user.get("is_profile_complete", False),
+                "must_change_password": user.get("must_change_password", False),
             }
         )
 
@@ -532,3 +533,71 @@ class AuthService:
         )
 
         return "Password reset successfully. You can now sign in with your new password."
+
+    async def change_password(
+        self,
+        user: dict,
+        current_password: str,
+        new_password: str,
+        ip_address: str | None = None,
+    ) -> tuple[str, dict]:
+        """Validate current password, set new password, and clear must_change_password flag."""
+        # 1. Verify current password
+        if not verify_password(current_password, user.get("password_hash", "")):
+            raise AppException(
+                code=ErrorCode.INVALID_CREDENTIALS,
+                message="Current password is incorrect.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 2. Prevent reusing identical password
+        if current_password == new_password:
+            raise AppException(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="New password must be different from current password.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 3. Validate new password length (minimum 8 characters)
+        if len(new_password) < 8:
+            raise AppException(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="Password must be at least 8 characters long.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_hash = hash_password(new_password)
+        now = datetime.now(timezone.utc)
+        await self.user_repo.update_by_id(
+            user["id"],
+            {
+                "$set": {
+                    "password_hash": new_hash,
+                    "must_change_password": False,
+                    "updatedAt": now,
+                }
+            },
+        )
+
+        updated_user = {**user, "must_change_password": False, "updatedAt": now}
+
+        # Log audit trail
+        await self.audit_repo.log_event(
+            user_id=user["id"],
+            action="PASSWORD_CHANGED",
+            entity="users",
+            entity_id=user["id"],
+            ip_address=ip_address,
+        )
+
+        # Generate fresh access token with must_change_password = False
+        access_token = create_jwt_token(
+            data={
+                "sub": updated_user["email"],
+                "role": updated_user["role"],
+                "is_profile_complete": updated_user.get("is_profile_complete", False),
+                "must_change_password": False,
+            }
+        )
+
+        return access_token, updated_user

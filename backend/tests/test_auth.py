@@ -237,3 +237,67 @@ async def test_verify_reset_otp_service(mock_user_repo):
     with pytest.raises(Exception) as exc_info:
         await auth_service.verify_reset_otp("student@uni.edu", "999999")
     assert getattr(exc_info.value, "code") == ErrorCode.INVALID_OTP
+
+
+# 8. Test change password service (First-time login / mandatory reset)
+@pytest.mark.anyio
+@patch("app.services.auth_service.UserRepository")
+@patch("app.services.auth_service.AuditLogRepository")
+async def test_change_password_service(mock_audit_repo, mock_user_repo):
+    """Test authenticated password change and mandatory password replacement."""
+    user_repo_instance = MagicMock()
+    mock_user = {
+        "id": "teacher_id_789",
+        "email": "prof@uni.edu",
+        "role": "teacher",
+        "is_verified": True,
+        "is_profile_complete": True,
+        "must_change_password": True,
+        "password_hash": hash_password("temporaryPassword123!"),
+    }
+    user_repo_instance.update_by_id = AsyncMock(return_value=True)
+    mock_user_repo.return_value = user_repo_instance
+
+    audit_repo_instance = MagicMock()
+    audit_repo_instance.log_event = AsyncMock()
+    mock_audit_repo.return_value = audit_repo_instance
+
+    auth_service = AuthService()
+
+    # Success case: correct current password + new strong password
+    token, updated_user = await auth_service.change_password(
+        mock_user,
+        current_password="temporaryPassword123!",
+        new_password="permanentSecurePassword456!",
+    )
+    assert token is not None
+    assert updated_user["must_change_password"] is False
+    assert user_repo_instance.update_by_id.called
+
+    # Failure case: incorrect current password
+    with pytest.raises(Exception) as exc_info:
+        await auth_service.change_password(
+            mock_user,
+            current_password="wrongCurrentPassword",
+            new_password="permanentSecurePassword456!",
+        )
+    assert getattr(exc_info.value, "code") == ErrorCode.INVALID_CREDENTIALS
+
+    # Failure case: new password identical to current password
+    with pytest.raises(Exception) as exc_info:
+        await auth_service.change_password(
+            mock_user,
+            current_password="temporaryPassword123!",
+            new_password="temporaryPassword123!",
+        )
+    assert getattr(exc_info.value, "code") == ErrorCode.VALIDATION_ERROR
+
+    # Failure case: new password too short (< 8 chars)
+    with pytest.raises(Exception) as exc_info:
+        await auth_service.change_password(
+            mock_user,
+            current_password="temporaryPassword123!",
+            new_password="short",
+        )
+    assert getattr(exc_info.value, "code") == ErrorCode.VALIDATION_ERROR
+

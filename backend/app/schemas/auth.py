@@ -85,6 +85,13 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, description="New password (min 8 chars)")
 
 
+class ChangePasswordRequest(BaseModel):
+    """Request payload for authenticated user to change password or replace temporary password."""
+
+    current_password: str
+    new_password: str = Field(..., min_length=8, description="New password (min 8 chars)")
+
+
 class TokenResponse(BaseModel):
     """Bearer token response schema."""
 
@@ -116,6 +123,7 @@ class UserMeResponse(BaseModel):
     role: str
     is_verified: bool
     is_profile_complete: bool
+    must_change_password: bool = False
     status: str = "active"
     profile: UserProfileSchema
     createdAt: datetime

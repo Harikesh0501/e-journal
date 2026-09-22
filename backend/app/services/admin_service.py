@@ -63,6 +63,7 @@ class AdminService:
             "role": "teacher",
             "is_verified": True,
             "is_profile_complete": True,
+            "must_change_password": True,
             "status": "active",
             "profile": {
                 "name": request.name.strip(),
