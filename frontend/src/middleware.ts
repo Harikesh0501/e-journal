@@ -39,6 +39,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Explicit logout request: immediately wipe access_token cookie and show login page
+  if (isAuthRoute && (request.nextUrl.searchParams.get("logout") === "1" || request.nextUrl.searchParams.get("clear") === "1")) {
+    const response = NextResponse.next();
+    response.cookies.set("access_token", "", { maxAge: 0, path: "/", expires: new Date(0) });
+    return response;
+  }
+
   // Check access_token cookie
   const token = request.cookies.get("access_token")?.value;
 

@@ -31,7 +31,7 @@ import {
   Shield,
 } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, clearAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import NotificationBell from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -106,38 +106,25 @@ export default function DashboardPage() {
 
   // 5. Logout mutation
   const logoutMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      clearAuthToken();
       if (typeof window !== "undefined") {
         (window as any).__IS_LOGGING_OUT = true;
-        sessionStorage.removeItem("ejournal_session_active");
       }
-      return api.post("/auth/logout");
+      try {
+        await api.post("/auth/logout");
+      } catch (err) {
+        // Ignore network errors on logout
+      }
     },
-    onSuccess: () => {
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("ejournal_session_active");
-      }
+    onSettled: () => {
+      clearAuthToken();
       queryClient.clear();
-      router.push("/auth/login");
-      router.refresh();
-      setTimeout(() => {
-        if (typeof window !== "undefined") {
-          (window as any).__IS_LOGGING_OUT = false;
-        }
-      }, 1000);
-    },
-    onError: () => {
       if (typeof window !== "undefined") {
-        sessionStorage.removeItem("ejournal_session_active");
+        window.location.href = "/auth/login?logout=1";
+      } else {
+        router.push("/auth/login?logout=1");
       }
-      queryClient.clear();
-      router.push("/auth/login");
-      router.refresh();
-      setTimeout(() => {
-        if (typeof window !== "undefined") {
-          (window as any).__IS_LOGGING_OUT = false;
-        }
-      }, 1000);
     },
   });
 

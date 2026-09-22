@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { clearAuthToken } from "@/lib/api";
 
 export function SessionExpiredModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +29,8 @@ export function SessionExpiredModal() {
 
   const handleLoginRedirect = () => {
     setIsOpen(false);
-    window.location.href = "/auth/login";
+    clearAuthToken();
+    window.location.href = "/auth/login?logout=1";
   };
 
   if (!isOpen || isAuthPage) return null;

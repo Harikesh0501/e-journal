@@ -53,10 +53,26 @@ export function setAuthToken(token: string) {
 
 export function clearAuthToken() {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem("ejournal_token");
-  sessionStorage.removeItem("ejournal_session_active");
-  localStorage.removeItem("ejournal_token");
-  document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+  try {
+    sessionStorage.removeItem("ejournal_token");
+    sessionStorage.removeItem("ejournal_session_active");
+    localStorage.removeItem("ejournal_token");
+
+    const isSecure = window.location.protocol === "https:";
+    const secureFlags = isSecure ? "; Secure" : "";
+
+    // 1. Clear root path with Lax and Secure
+    document.cookie = `access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax${secureFlags}`;
+    // 2. Clear root path with None and Secure
+    document.cookie = `access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=None${secureFlags}`;
+    // 3. Clear standard root
+    document.cookie = `access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0`;
+    // 4. Clear current domain
+    const hostname = window.location.hostname;
+    document.cookie = `access_token=; path=/; domain=${hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0${secureFlags}`;
+  } catch (e) {
+    console.error("Failed to clear auth token:", e);
+  }
 }
 
 /**

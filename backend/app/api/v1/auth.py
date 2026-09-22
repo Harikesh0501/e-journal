@@ -136,6 +136,15 @@ async def logout(response: Response):
         secure=settings.cookie_secure,
         path="/",
     )
+    # Also delete with lax mode to catch any locally set or transitioned cookies
+    if settings.is_production:
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            path="/",
+        )
     return success_response("Logged out successfully")
 
 

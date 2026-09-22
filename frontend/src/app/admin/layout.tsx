@@ -7,7 +7,7 @@
 import { ReactNode, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
@@ -21,7 +21,7 @@ import {
   User,
 } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, clearAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -61,6 +61,7 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Fetch active admin details
   const { data: user, isLoading } = useQuery({
@@ -69,13 +70,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => api.post("/auth/logout"),
-    onSuccess: () => {
+    mutationFn: async () => {
+      clearAuthToken();
       if (typeof window !== "undefined") {
         (window as any).__IS_LOGGING_OUT = true;
-        sessionStorage.removeItem("ejournal_session_active");
       }
-      router.push("/auth/login");
+      try {
+        await api.post("/auth/logout");
+      } catch (err) {
+        // Ignore network errors on logout
+      }
+    },
+    onSettled: () => {
+      clearAuthToken();
+      queryClient.clear();
+      if (typeof window !== "undefined") {
+        window.location.href = "/auth/login?logout=1";
+      } else {
+        router.push("/auth/login?logout=1");
+      }
     },
   });
 
