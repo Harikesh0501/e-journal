@@ -71,11 +71,28 @@ def register_exception_handlers(app: FastAPI) -> None:
             path=request.url.path,
             errors=str(exc.errors()),
         )
+        first_error = exc.errors()[0] if exc.errors() else None
+        if first_error:
+            loc = first_error.get("loc", ())
+            field = str(loc[-1]) if loc else "field"
+            msg = first_error.get("msg", "Invalid value")
+            if "string should have at least" in msg.lower():
+                min_len = first_error.get("ctx", {}).get("min_length", "")
+                user_msg = f"{field.capitalize()} must be at least {min_len} characters"
+            elif msg.lower().startswith("value error, "):
+                user_msg = msg[13:]
+            elif field.lower() in msg.lower():
+                user_msg = msg
+            else:
+                user_msg = f"{field.capitalize()}: {msg}"
+        else:
+            user_msg = "Request validation failed"
+
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content=error_response(
                 ErrorCode.VALIDATION_ERROR,
-                "Request validation failed",
+                user_msg,
                 exc.errors(),
             ),
         )

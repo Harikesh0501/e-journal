@@ -35,7 +35,12 @@ const createFacultySchema = zod.object({
   email: zod.string().email("Enter a valid institutional email"),
   department: zod.string().min(2, "Department is required"),
   designation: zod.string().min(2, "Designation is required"),
-  password: zod.string().optional(),
+  password: zod
+    .string()
+    .optional()
+    .refine((val) => !val || val.trim().length === 0 || val.trim().length >= 8, {
+      message: "Password must be at least 8 characters if provided",
+    }),
 });
 
 type CreateFacultyFields = zod.infer<typeof createFacultySchema>;
@@ -67,8 +72,15 @@ export default function AdminFacultyPage() {
 
   // 2. Add Faculty Mutation
   const addFacultyMutation = useMutation({
-    mutationFn: (data: CreateFacultyFields) => api.post("/admin/faculty", data),
+    mutationFn: (data: CreateFacultyFields) => {
+      const payload = {
+        ...data,
+        password: data.password && data.password.trim().length > 0 ? data.password.trim() : undefined,
+      };
+      return api.post("/admin/faculty", payload);
+    },
     onSuccess: (res: any) => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ["adminFaculty"] });
       queryClient.invalidateQueries({ queryKey: ["adminStats"] });
       setShowAddModal(false);
@@ -371,6 +383,12 @@ export default function AdminFacultyPage() {
               </Button>
             </div>
 
+            {actionError && (
+              <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-medium border border-destructive/20 animate-in fade-in">
+                {actionError}
+              </div>
+            )}
+
             <form
               onSubmit={addForm.handleSubmit((d) => addFacultyMutation.mutate(d))}
               className="flex flex-col gap-3.5"
@@ -429,10 +447,13 @@ export default function AdminFacultyPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Leave empty for auto-generated secure password"
+                  placeholder="Leave empty for auto-generated secure password (min 8 chars if provided)"
                   className="px-3 py-2 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 font-mono text-[11px]"
                   {...addForm.register("password")}
                 />
+                {addForm.formState.errors.password && (
+                  <span className="text-[11px] text-destructive">{addForm.formState.errors.password.message}</span>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">

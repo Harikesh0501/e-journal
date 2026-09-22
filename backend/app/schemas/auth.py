@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserRegisterRequest(BaseModel):
@@ -23,7 +23,18 @@ class AdminCreateFacultyRequest(BaseModel):
     email: EmailStr = Field(..., description="Faculty institutional email")
     department: str = Field(..., min_length=2, description="Academic department")
     designation: str = Field(default="Assistant Professor", description="Academic designation")
-    password: str | None = Field(default=None, min_length=8, description="Optional initial password")
+    password: str | None = Field(default=None, description="Optional initial password (min 8 chars if provided)")
+
+    @field_validator("password", mode="before")
+    @classmethod
+    def sanitize_password(cls, v):
+        if v is not None:
+            v = str(v).strip()
+            if not v:
+                return None
+            if len(v) < 8:
+                raise ValueError("Password must be at least 8 characters if provided")
+        return v
 
 
 class AdminUpdateUserStatusRequest(BaseModel):
