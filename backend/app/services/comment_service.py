@@ -60,6 +60,14 @@ class CommentService:
                         message="You are not authorized to review or view journals from this classroom",
                         status_code=status.HTTP_403_FORBIDDEN,
                     )
+        elif user_role == "admin":
+            pass  # Admin has full oversight and inspection privileges
+        else:
+            raise AppException(
+                code=ErrorCode.FORBIDDEN,
+                message="You are not authorized to view this journal",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
         return journal
 
     async def add_annotation(

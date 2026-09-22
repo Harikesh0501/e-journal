@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Loader2, Plus, MessageSquare, History, CheckCircle2, Sparkles, AlertTriangle } from "lucide-react";
@@ -135,9 +136,9 @@ export default function EditorPage({ params }: PageProps) {
     }
   }, [journal, init]);
 
-  // Set default previewMode = true for teachers
+  // Set default previewMode = true for teachers and admins
   useEffect(() => {
-    if (user?.role === "teacher" && !previewMode) {
+    if ((user?.role === "teacher" || user?.role === "admin") && !previewMode) {
       togglePreview();
     }
   }, [user, previewMode, togglePreview]);
@@ -454,10 +455,10 @@ export default function EditorPage({ params }: PageProps) {
             This journal could not be found or you do not have permission to view it.
           </p>
           <Button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push(user?.role === "admin" ? "/admin/journals" : "/dashboard")}
             className="rounded-xl px-5 text-xs font-semibold cursor-pointer"
           >
-            Return to Dashboard
+            {user?.role === "admin" ? "Return to Journal Submissions" : "Return to Dashboard"}
           </Button>
         </div>
       </div>
@@ -466,12 +467,13 @@ export default function EditorPage({ params }: PageProps) {
 
   const classroomId = assignment?.classroomId || "";
   const isTeacher = user?.role === "teacher";
+  const isAdmin = user?.role === "admin";
   const isPastDeadline = Boolean(
     status === "late_submitted" ||
     journal?.isLate ||
     (assignment?.deadline && new Date() > new Date(assignment.deadline))
   );
-  const canUnsubmit = (status === "submitted" || status === "late_submitted") && !isTeacher && !isPastDeadline;
+  const canUnsubmit = (status === "submitted" || status === "late_submitted") && !isTeacher && !isAdmin && !isPastDeadline;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100/70 dark:bg-zinc-950 bg-textured-workspace text-foreground selection:bg-primary/10 relative">
@@ -578,6 +580,28 @@ export default function EditorPage({ params }: PageProps) {
               <span>Date: <strong>{new Date().toLocaleDateString()}</strong></span>
             </div>
           </div>
+
+          {/* Administrator Inspection Mode Banner */}
+          {isAdmin && (
+            <div className="p-3.5 px-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm animate-in fade-in-50 duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span className="font-bold text-foreground">
+                  🛡️ Administrator Inspection Mode (Read-Only)
+                </span>
+                <span className="text-muted-foreground hidden md:inline">
+                  — You are reviewing this student lab record for institutional audit and academic verification.
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link href="/admin/journals">
+                  <Button variant="outline" size="sm" className="h-7 text-xs font-semibold rounded-lg hover:bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200 cursor-pointer">
+                    Back to Oversight
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Local Recovery Banner */}
           {localRecoverySnapshot && isEditable && (
@@ -894,8 +918,8 @@ export default function EditorPage({ params }: PageProps) {
           </div>
         </main>
 
-        {/* Teacher Review Panel — Floating Right Sidebar */}
-        {isTeacher && showReviewDrawer && (
+        {/* Teacher / Admin Review Panel — Floating Right Sidebar */}
+        {(isTeacher || isAdmin) && showReviewDrawer && (
           <aside className="w-[340px] shrink-0 sticky top-[4.5rem] h-[calc(100vh-5.5rem)] mr-3 my-2 rounded-2xl bg-gradient-to-b from-white/95 via-white/90 to-white/85 dark:from-zinc-900/95 dark:via-zinc-900/90 dark:to-zinc-950/85 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10 shadow-xl z-20 overflow-hidden">
             <ReviewDrawer
               journalId={journalId}
@@ -907,6 +931,7 @@ export default function EditorPage({ params }: PageProps) {
               currentMarks={journal?.marks}
               currentRemarks={journal?.teacherRemarks}
               blocks={blocks}
+              isAdmin={isAdmin}
               onClose={() => setShowReviewDrawer(false)}
             />
           </aside>

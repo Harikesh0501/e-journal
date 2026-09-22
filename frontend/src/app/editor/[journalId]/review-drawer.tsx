@@ -33,6 +33,7 @@ interface ReviewDrawerProps {
   currentMarks?: number;
   currentRemarks?: string;
   blocks?: any[];
+  isAdmin?: boolean;
   onClose?: () => void;
 }
 
@@ -46,6 +47,7 @@ export default function ReviewDrawer({
   currentMarks,
   currentRemarks,
   blocks,
+  isAdmin = false,
   onClose,
 }: ReviewDrawerProps) {
   const router = useRouter();
@@ -335,7 +337,7 @@ export default function ReviewDrawer({
           <div className="size-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
             <MessageSquare className="size-3.5 text-indigo-500" />
           </div>
-          <span className="text-[13px] font-bold text-foreground tracking-tight">Review & Grade</span>
+          <span className="text-[13px] font-bold text-foreground tracking-tight">{isAdmin ? "Inspection & Feedback" : "Review & Grade"}</span>
         </div>
         {onClose && (
           <button
@@ -510,14 +512,27 @@ export default function ReviewDrawer({
                 </div>
               )}
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsEditingEvaluation(true)}
-                className="mt-1 w-full h-8 text-xs font-semibold rounded-xl border-border/60 hover:bg-muted cursor-pointer"
-              >
-                <span>Edit Evaluation & Grade</span>
-              </Button>
+              {!isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsEditingEvaluation(true)}
+                  className="mt-1 w-full h-8 text-xs font-semibold rounded-xl border-border/60 hover:bg-muted cursor-pointer"
+                >
+                  <span>Edit Evaluation & Grade</span>
+                </Button>
+              )}
+            </div>
+          ) : isAdmin ? (
+            /* Admin Read-Only Notice when unapproved */
+            <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold">
+                <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span>Pending Faculty Evaluation</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                This student lab submission has not yet been assigned final marks or evaluated by faculty.
+              </p>
             </div>
           ) : (
             /* Editable Evaluation Form */

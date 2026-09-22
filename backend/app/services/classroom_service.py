@@ -99,7 +99,9 @@ class ClassroomService:
             )
 
         # Enforce authorization boundaries (RULE-AUTH09/10)
-        if role == "teacher" and classroom["teacherId"] != user_id:
+        if role == "admin":
+            pass  # Admin has full inspection access
+        elif role == "teacher" and classroom["teacherId"] != user_id:
             raise AppException(
                 code=ErrorCode.FORBIDDEN,
                 message="You are not authorized to view this classroom",

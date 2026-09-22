@@ -195,7 +195,9 @@ class AssignmentService:
             )
 
         # Validate classroom membership boundaries (RULE-AUTH09/10)
-        if role == "teacher" and classroom["teacherId"] != user_id:
+        if role == "admin":
+            pass  # Admin has global oversight across all classrooms
+        elif role == "teacher" and classroom["teacherId"] != user_id:
             raise AppException(
                 code=ErrorCode.FORBIDDEN,
                 message="Access denied to this classroom",
@@ -222,8 +224,10 @@ class AssignmentService:
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        # Re-use membership validation using classroomId of the assignment
-        await self.list_assignments(assignment["classroomId"], user_id, role)
+        # Administrators have global inspection access across all classrooms
+        if role != "admin":
+            # Re-use membership validation using classroomId of the assignment
+            await self.list_assignments(assignment["classroomId"], user_id, role)
 
         return assignment
 

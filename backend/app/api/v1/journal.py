@@ -56,12 +56,13 @@ async def list_my_journals(
 @router.get("/classroom/{classroomId}/submissions", response_model=ApiResponse[list])
 async def list_classroom_submissions(
     classroomId: str,
-    user: dict = Depends(RoleChecker(["teacher"])),
+    user: dict = Depends(RoleChecker(["teacher", "admin"])),
     journal_service: JournalService = Depends(),
 ):
-    """List all submitted or graded student journals for a classroom (Teacher dashboard)."""
-    submissions = await journal_service.get_classroom_submissions(classroomId, user["id"])
+    """List all submitted or graded student journals for a classroom (Teacher dashboard / Admin inspection)."""
+    submissions = await journal_service.get_classroom_submissions(classroomId, user["id"], user["role"])
     return success_response(submissions)
+
 
 
 @router.get("/{journalId}", response_model=ApiResponse[JournalResponse])

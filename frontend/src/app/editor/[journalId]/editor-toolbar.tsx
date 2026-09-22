@@ -49,15 +49,18 @@ export default function EditorToolbar({
     journalId,
   } = useDocumentStore();
 
-  const isEditable = status === "draft" || status === "changes_requested";
+  const isStudent = userRole?.toLowerCase() === "student";
+  const isTeacher = userRole?.toLowerCase() === "teacher";
+  const isAdmin = userRole?.toLowerCase() === "admin";
+  const isEditable = (status === "draft" || status === "changes_requested") && isStudent;
 
   return (
     <header className="fixed top-3 left-4 right-4 sm:left-16 sm:right-16 z-40 flex items-center justify-between px-4 py-2 bg-gradient-to-b from-white/90 via-white/80 to-white/70 dark:from-zinc-900/90 dark:via-zinc-900/85 dark:to-zinc-950/80 backdrop-blur-2xl backdrop-saturate-180 border border-white/80 dark:border-white/15 ring-1 ring-black/5 dark:ring-white/10 shadow-xl rounded-2xl select-none transition-all duration-300">
       {/* Left: Back Button & Journal Title */}
       <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
         <Link
-          href={`/classrooms/${classroomId}`}
-          title="Back to Classroom"
+          href={isAdmin ? "/admin/journals" : `/classrooms/${classroomId}`}
+          title={isAdmin ? "Back to Journal Submissions Oversight" : "Back to Classroom"}
           className="flex items-center justify-center size-8 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
         >
           <ArrowLeft className="size-4" />
@@ -143,8 +146,78 @@ export default function EditorToolbar({
           </div>
 
 
-          {/* Teacher Specific Controls */}
-          {userRole?.toLowerCase() === "teacher" ? (
+          {/* Admin Specific Controls */}
+          {isAdmin ? (
+            <>
+              {/* Admin Review Panel Toggle */}
+              {onToggleReviewDrawer && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleReviewDrawer}
+                  className={`gap-1.5 text-xs font-semibold rounded-xl h-8 cursor-pointer transition-all active:scale-95 ${
+                    showReviewDrawer
+                      ? "border-amber-500/60 bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Toggle review feedback & evaluation drawer"
+                >
+                  <MessageSquare className={`size-3.5 ${showReviewDrawer ? "text-amber-600 dark:text-amber-400" : ""}`} />
+                  <span>Review</span>
+                </Button>
+              )}
+
+              {/* History Button */}
+              {onToggleVersionHistory && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleVersionHistory}
+                  className="gap-1.5 text-xs font-semibold cursor-pointer rounded-xl h-8 active:scale-95 transition-all"
+                  title="View revision snapshot timeline"
+                >
+                  <History className="size-3.5 text-indigo-500" />
+                  <span>History</span>
+                </Button>
+              )}
+
+              {/* 1-Click High-Fidelity PDF Export */}
+              {classroomId && (
+                <Link href={`/classrooms/${classroomId}/compile-journal?journalId=${journalId}`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer text-foreground hover:bg-muted rounded-xl h-8 shadow-2xs"
+                    title="Preview and Export this journal as PDF"
+                  >
+                    <Download className="size-3.5 text-primary" />
+                    <span>Export PDF</span>
+                  </Button>
+                </Link>
+              )}
+
+              <ThemeToggle />
+
+              <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Admin Inspect
+              </span>
+
+              <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${
+                status === "approved"
+                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                  : status === "changes_requested"
+                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                  : status === "draft"
+                  ? "bg-slate-500/10 text-slate-600 border-slate-500/30"
+                  : status === "late_submitted"
+                  ? "bg-rose-500/10 text-rose-600 border-rose-500/30"
+                  : "bg-blue-500/10 text-blue-600 border-blue-500/30"
+              }`}>
+                {status === "approved" ? "Approved" : status === "changes_requested" ? "Changes Requested" : status === "draft" ? "Draft" : status === "late_submitted" ? "Late" : "Submitted"}
+              </span>
+            </>
+          ) : isTeacher ? (
             <>
               {/* Teacher Review Panel Toggle */}
               {onToggleReviewDrawer && (
@@ -177,17 +250,19 @@ export default function EditorToolbar({
               )}
 
               {/* 1-Click High-Fidelity PDF Export */}
-              <Link href={`/classrooms/${classroomId}/compile-journal?journalId=${journalId}`}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer text-foreground hover:bg-muted rounded-xl h-8 shadow-2xs"
-                  title="Preview and Export this journal as PDF"
-                >
-                  <Download className="size-3.5 text-primary" />
-                  <span>Export PDF</span>
-                </Button>
-              </Link>
+              {classroomId && (
+                <Link href={`/classrooms/${classroomId}/compile-journal?journalId=${journalId}`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer text-foreground hover:bg-muted rounded-xl h-8 shadow-2xs"
+                    title="Preview and Export this journal as PDF"
+                  >
+                    <Download className="size-3.5 text-primary" />
+                    <span>Export PDF</span>
+                  </Button>
+                </Link>
+              )}
 
               <ThemeToggle />
 

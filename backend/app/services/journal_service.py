@@ -227,6 +227,14 @@ class JournalService:
                     message="You are not authorized to view journals from this classroom",
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
+        elif user_role == "admin":
+            pass  # Admin has full read-only inspection access across all journals
+        else:
+            raise AppException(
+                code=ErrorCode.FORBIDDEN,
+                message="You are not authorized to view this journal",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
 
         counts = await self.comment_repo.get_annotation_counts(journal_id)
         journal["annotationCounts"] = counts
@@ -1554,11 +1562,17 @@ class JournalService:
         return snapshot
 
     async def get_classroom_submissions(
-        self, classroom_id: str, teacher_id: str
+        self, classroom_id: str, teacher_id: str, user_role: str = "teacher"
     ) -> list[dict]:
-        """Fetch all submitted or graded student journals for a classroom (Teacher dashboard)."""
+        """Fetch all submitted or graded student journals for a classroom (Teacher dashboard / Admin inspection)."""
         classroom = await self.classroom_repo.find_by_id(classroom_id)
-        if not classroom or classroom["teacherId"] != teacher_id:
+        if not classroom:
+            raise AppException(
+                code=ErrorCode.CLASSROOM_NOT_FOUND,
+                message="Classroom not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        if user_role != "admin" and classroom.get("teacherId") != teacher_id:
             raise AppException(
                 code=ErrorCode.FORBIDDEN,
                 message="You do not own this classroom",
