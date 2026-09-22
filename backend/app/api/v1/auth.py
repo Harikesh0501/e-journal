@@ -61,12 +61,12 @@ async def verify_otp(
         payload.email, payload.otp, ip_address=ip_address
     )
 
-    # Set session cookie (RULE-AUTH01, SEC-06) - cleared automatically on browser close
+    cookie_samesite = "none" if settings.is_production else "lax"
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite=cookie_samesite,
         secure=settings.cookie_secure,
         path="/",
     )
@@ -105,11 +105,12 @@ async def login(
     )
 
     # Set session cookie (RULE-AUTH01, SEC-06) - cleared automatically on browser close
+    cookie_samesite = "none" if settings.is_production else "lax"
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
+        samesite=cookie_samesite,
         secure=settings.cookie_secure,
         path="/",
     )
@@ -127,10 +128,11 @@ async def login(
 @router.post("/logout", response_model=ApiResponse[str])
 async def logout(response: Response):
     """Clear access token cookie and sign out current user session."""
+    cookie_samesite = "none" if settings.is_production else "lax"
     response.delete_cookie(
         key="access_token",
         httponly=True,
-        samesite="lax",
+        samesite=cookie_samesite,
         secure=settings.cookie_secure,
         path="/",
     )

@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { api } from "@/lib/api";
+import { api, setAuthToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 const loginSchema = zod.object({
@@ -41,6 +41,11 @@ export default function LoginPage() {
   const mutation = useMutation({
     mutationFn: (data: LoginFields) => api.post<{ access_token: string; user: { is_profile_complete: boolean } }>("/auth/login", data),
     onSuccess: (data) => {
+      // Persist token for Next.js middleware and API authorization across domains
+      if (data.access_token) {
+        setAuthToken(data.access_token);
+      }
+
       // RULE-AUTH01: Set ephemeral browser session flag (cleared on browser close)
       if (typeof window !== "undefined") {
         sessionStorage.setItem("ejournal_session_active", "1");

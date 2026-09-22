@@ -43,12 +43,29 @@ export class ApiRequestError extends Error {
   }
 }
 
+export function setAuthToken(token: string) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem("ejournal_token", token);
+  localStorage.setItem("ejournal_token", token);
+  const isSecure = window.location.protocol === "https:";
+  document.cookie = `access_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+}
+
+export function clearAuthToken() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem("ejournal_token");
+  sessionStorage.removeItem("ejournal_session_active");
+  localStorage.removeItem("ejournal_token");
+  document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+}
+
 /**
  * Core fetch wrapper with response envelope handling.
  *
  * - Automatically parses the response envelope
  * - Throws ApiRequestError on failure responses
  * - Includes credentials for HTTP-only cookie auth (RULE-AUTH01)
+ * - Injects Authorization Bearer header for cross-origin deployments
  */
 async function request<T>(
   endpoint: string,
@@ -56,11 +73,23 @@ async function request<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  let token: string | null = null;
+  if (typeof window !== "undefined") {
+    token =
+      sessionStorage.getItem("ejournal_token") ||
+      localStorage.getItem("ejournal_token");
+    if (!token) {
+      const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+  }
+
   const response = await fetch(url, {
     ...options,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
@@ -75,6 +104,7 @@ async function request<T>(
       body.error?.code === "INVALID_TOKEN" ||
       body.error?.code === "USER_NOT_FOUND"
     ) {
+      clearAuthToken();
       // Do not dispatch session expired modal if logging out, on auth pages, or root
       if (
         typeof window !== "undefined" &&
@@ -84,9 +114,6 @@ async function request<T>(
         window.location.pathname !== "/"
       ) {
         window.dispatchEvent(new Event("unauthorized"));
-      }
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("ejournal_session_active");
       }
       try {
         await fetch(`${API_BASE_URL}/auth/logout`, {
